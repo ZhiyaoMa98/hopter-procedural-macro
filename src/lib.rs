@@ -99,7 +99,7 @@ pub fn main(_attr: TokenStream, item: TokenStream) -> TokenStream {
 ///     core::arch::asm!(
 ///         "ldr r0, ={handler_func}",
 ///         "b {fast_irq_entry}",
-///         fast_irq_entry = sym crate::rtos::interrupt::default::fast_irq_entry,
+///         fast_irq_entry = sym hopter::interrupt::default::fast_irq_entry,
 ///         handler_func = sym tim7_handler,
 ///         options(noreturn)
 ///     )
@@ -129,7 +129,7 @@ pub fn handler(attr: TokenStream, item: TokenStream) -> TokenStream {
             core::arch::asm!(\n\
                 \"ldr r0, ={{handler_func}}\",\n\
                 \"b {{fast_irq_entry}}\",\n\
-                fast_irq_entry = sym rtos::interrupt::default::fast_irq_entry,\n\
+                fast_irq_entry = sym hopter::interrupt::default::fast_irq_entry,\n\
                 handler_func = sym {},\n\
                 options(noreturn)\n\
             )\n\
