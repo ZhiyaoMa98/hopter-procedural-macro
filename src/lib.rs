@@ -52,9 +52,9 @@ pub fn main(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let trampoline = format!(
         "\
         #[no_mangle]\n\
-        extern \"C\" fn __main_trampoline(arg: AtomicPtr<u8>) {{\n\
-            let arg = arg.load(Ordering::SeqCst) as *mut cortex_m::Peripherals;\n\
-            let arg = unsafe {{ Box::from_raw(arg) }};\n\
+        extern \"C\" fn __main_trampoline(arg: core::sync::atomic::AtomicPtr<u8>) {{\n\
+            let arg = arg.load(core::sync::atomic::Ordering::SeqCst) as *mut cortex_m::Peripherals;\n\
+            let arg = unsafe {{ alloc::boxed::Box::from_raw(arg) }};\n\
             {}(*arg)\n\
         }}",
         func_name
