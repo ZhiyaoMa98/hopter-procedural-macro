@@ -98,8 +98,8 @@ pub fn main(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// unsafe extern "C" fn __tim7_entry() {
 ///     core::arch::asm!(
 ///         "ldr r0, ={handler_func}",
-///         "b {fast_irq_entry}",
-///         fast_irq_entry = sym hopter::interrupt::default::fast_irq_entry,
+///         "b {entry}",
+///         entry = sym hopter::interrupt::entry_exit::entry,
 ///         handler_func = sym tim7_handler,
 ///         options(noreturn)
 ///     )
@@ -128,8 +128,8 @@ pub fn handler(attr: TokenStream, item: TokenStream) -> TokenStream {
         unsafe extern \"C\" fn __{}_entry() {{\n\
             core::arch::asm!(\n\
                 \"ldr r0, ={{handler_func}}\",\n\
-                \"b {{fast_irq_entry}}\",\n\
-                fast_irq_entry = sym hopter::interrupt::default::fast_irq_entry,\n\
+                \"b {{entry}}\",\n\
+                entry = sym hopter::interrupt::entry_exit::entry,\n\
                 handler_func = sym {},\n\
                 options(noreturn)\n\
             )\n\
