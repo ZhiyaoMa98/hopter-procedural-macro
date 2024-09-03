@@ -1,12 +1,27 @@
 [package]
 name = "hopter_proc_macro"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 
 [lib]
 proc-macro = true
 
+[features]
+stm32f401 = []
+stm32f405 = []
+stm32f407 = []
+stm32f410 = []
+stm32f411 = []
+stm32f412 = []
+stm32f413 = []
+stm32f427 = []
+stm32f429 = []
+stm32f446 = []
+stm32f469 = []
+
 [dependencies]
 syn = { version = "1.0", features = ["full"] }
 quote = "1.0"
 proc-macro2 = "1.0"
+
+
