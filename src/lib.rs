@@ -154,7 +154,7 @@ pub fn handler(attr: TokenStream, item: TokenStream) -> TokenStream {
 
 macro_rules! hander_macro_arg_error {
     () => {
-        "Handler's argument must be one of the supported IRQs."
+        "Handler's argument must be one of the supported IRQs. Forgot to set the MCU model feature?"
     };
 }
 
@@ -259,6 +259,21 @@ fn parse_attribute_arg_to_irq(attr_args: &[NestedMeta]) -> String {
 }
 
 /// List of supported IRQ names.
+
+#[cfg(not(any(
+    feature = "stm32f401",
+    feature = "stm32f405",
+    feature = "stm32f407",
+    feature = "stm32f410",
+    feature = "stm32f411",
+    feature = "stm32f412",
+    feature = "stm32f413",
+    feature = "stm32f427",
+    feature = "stm32f429",
+    feature = "stm32f446",
+    feature = "stm32f469",
+)))]
+const SUPPORTED_IRQS: [&str; 0] = [];
 
 #[cfg(feature = "stm32f401")]
 const SUPPORTED_IRQS: [&str; 55] = [
