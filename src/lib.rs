@@ -107,13 +107,10 @@ pub fn main(_attr: TokenStream, item: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn handler(attr: TokenStream, item: TokenStream) -> TokenStream {
     // Parse the `item` TokenStream into a Rust function.
-    let mut handler_func = parse_macro_input!(item as ItemFn);
+    let handler_func = parse_macro_input!(item as ItemFn);
 
     // Parse the `attr` TokenStream into attribute arguments.
     let attr_args = parse_macro_input!(attr as AttributeArgs);
-
-    // Force the handler function to be an extern "C" function.
-    handler_func.sig.abi = Some(syn::parse_quote!(extern "C"));
 
     check_handler_function_signature(&handler_func.sig);
 
@@ -225,6 +222,10 @@ fn check_handler_function_signature(sig: &Signature) {
             }
             _ => panic!(hander_macro_retval_error!()),
         },
+    }
+
+    if sig.abi.is_some() {
+        panic!("Handler function must have Rust ABI.");
     }
 
     if sig.asyncness.is_some() {
