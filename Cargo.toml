@@ -1,7 +1,11 @@
 [package]
 name = "hopter_proc_macro"
-version = "0.1.8"
+version = "0.2.0"
 edition = "2021"
+license = "MIT"
+description = "Procedural macro implementation for Hopter embedded operating system."
+repository = "https://github.com/hopter-project/hopter-procedural-macro"
+readme = false
 
 [lib]
 proc-macro = true
@@ -23,5 +27,3 @@ stm32f469 = []
 syn = { version = "1.0", features = ["full"] }
 quote = "1.0"
 proc-macro2 = "1.0"
-
-
