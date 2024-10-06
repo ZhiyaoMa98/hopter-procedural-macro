@@ -81,27 +81,50 @@ pub fn main(_attr: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// Example:
 /// ```rust
-/// #[handler(TIM7)]
-/// extern "C" fn tim7_handler() {
+/// #[handler(TIM2)]
+/// fn tim2_handler() {
 ///     /* handler logic */
 /// }
 /// ```
 ///
-/// The macro works by generating a trampoline function for the IRQ to call
-/// the user defined handler function. For example, for `TIM7`, the generated
-/// trampoline looks like below:
+/// The macro works by generating an assembly entry sequence and a trampoline
+/// function for the IRQ to call the user defined handler function. For example,
+/// for `TIM2`, the generated entry sequence and trampoline looks like below:
 ///
 /// ```rust
 /// #[naked]
-/// #[export_name = "TIM7"]
-/// unsafe extern "C" fn __tim7_entry() {
+/// #[export_name = "TIM2"]
+/// unsafe extern "C" fn __hopter_tim2_entry() {
 ///     core::arch::asm!(
-///         "ldr r0, ={handler_func}",
-///         "b {entry}",
-///         entry = sym hopter::interrupt::entry_exit::entry,
-///         handler_func = sym tim7_handler,
+///         // Preserve the task local storage (TLS) fields and exception return value.
+///         "ldr   r0, ={tls_mem_addr}",
+///         "ldmia r0, {{r1-r3}}",
+///         "push  {{r1-r3, lr}}",
+///         // Set the kernel stacklet boundary and clear out other fields in the TLS.
+///         "ldr   r1, ={cont_stk_boundary}",
+///         "mov   r2, #0",
+///         "strd  r1, r2, [r0]",
+///         "str   r2, [r0, #8]",
+///         // Run the IRQ handler.
+///         "bl    {handler_trampoline}",
+///         // Restore the TLS fields and exception return value.
+///         "pop   {{r1-r3}}",
+///         "ldr   r0, ={tls_mem_addr}",
+///         "stmia r0, {{r1-r3}}",
+///         // Exception return.
+///         "pop   {{pc}}",
+///         tls_mem_addr = const hopter::config::__TLS_MEM_ADDR,
+///         cont_stk_boundary = const hopter::config::__CONTIGUOUS_STACK_BOUNDARY,
+///         handler_trampoline = sym __hopter_tim2_trampoline,
 ///         options(noreturn)
 ///     )
+/// }
+///
+/// unsafe extern "C" fn __hopter_tim2_trampoline() {
+///     let prev_is_handler_unwinding
+///         = hopter::unwind::unwind::save_and_clear_isr_unwinding();
+///     let _ = hopter::unwind::unw_catch::catch_unwind(tim2_handler);
+///     hopter::unwind::unwind::set_isr_unwinding(prev_is_handler_unwinding);
 /// }
 /// ```
 #[proc_macro_attribute]
@@ -115,27 +138,52 @@ pub fn handler(attr: TokenStream, item: TokenStream) -> TokenStream {
     check_handler_function_signature(&handler_func.sig);
 
     let irq = parse_attribute_arg_to_irq(&attr_args);
+    let lower_caes_irq = irq.to_lowercase();
 
     // Store the handler function's name.
     let func_name = handler_func.sig.ident.to_string();
 
-    // Generate the trampoline function string.
-    let trampoline = format!(
+    let entry_asm = format!(
         "\
         #[naked]\n\
         #[export_name = \"{}\"]\n\
-        unsafe extern \"C\" fn __{}_entry() {{\n\
+        unsafe extern \"C\" fn __hopter_{}_entry() {{\n\
             core::arch::asm!(\n\
-                \"ldr r0, ={{handler_func}}\",\n\
-                \"b {{entry}}\",\n\
-                entry = sym hopter::interrupt::entry_exit::entry,\n\
-                handler_func = sym {},\n\
+                \"ldr   r0, ={{tls_mem_addr}}\",\n\
+                \"ldmia r0, {{{{r1-r3}}}}\",\n\
+                \"push  {{{{r1-r3, lr}}}}\",\n\
+                \"ldr   r1, ={{cont_stk_boundary}}\",\n\
+                \"mov   r2, #0\",\n\
+                \"strd  r1, r2, [r0]\",\n\
+                \"str   r2, [r0, #8]\",\n\
+                // Run the IRQ handler.\n\
+                \"bl    {{handler_trampoline}}\",\n\
+                \"pop   {{{{r1-r3}}}}\",\n\
+                \"ldr   r0, ={{tls_mem_addr}}\",\n\
+                \"stmia r0, {{{{r1-r3}}}}\",\n\
+                // Exception return.\n\
+                \"pop   {{{{pc}}}}\",\n\
+                tls_mem_addr = const hopter::config::__TLS_MEM_ADDR,\n\
+                cont_stk_boundary = const hopter::config::__CONTIGUOUS_STACK_BOUNDARY,\n\
+                handler_trampoline = sym __hopter_{}_trampoline,\n\
                 options(noreturn)\n\
             )\n\
-        }}",
-        irq,
-        irq.to_lowercase(),
-        func_name
+        }}\n\
+        ",
+        irq, lower_caes_irq, lower_caes_irq,
+    );
+
+    let entry_asm = syn::parse_str::<TokenStream2>(entry_asm.as_str()).unwrap();
+
+    let trampoline = format!(
+        "\
+        unsafe extern \"C\" fn __hopter_{}_trampoline() {{\n\
+        let prev_is_handler_unwinding = hopter::unwind::unwind::save_and_clear_isr_unwinding();\n\
+        let _ = hopter::unwind::unw_catch::catch_unwind({});\n\
+        hopter::unwind::unwind::set_isr_unwinding(prev_is_handler_unwinding);\n\
+        }}\n\
+        ",
+        lower_caes_irq, func_name,
     );
 
     // Parse the trampoline string into a token stream.
@@ -143,6 +191,7 @@ pub fn handler(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     // Output the trampoline followed by the original main function.
     quote! {
+        #entry_asm
         #trampoline
         #handler_func
     }
